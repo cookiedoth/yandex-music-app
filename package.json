@@ -38,7 +38,8 @@
     "electron-updater": "^4.6.1",
     "node-addon-api": "^3.0.0",
     "node-fetch": "^2.6.7",
-    "vue": "^2.6.14"
+    "vue": "^2.6.14",
+    "websocket": "^1.0.34"
   },
   "build": {
     "productName": "Yandex Music Unofficial",

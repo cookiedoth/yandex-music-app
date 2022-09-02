@@ -1,6 +1,7 @@
 const { app, BrowserWindow, BrowserView, ipcMain } = require("electron");
 const path = require("path");
 const Store = require("electron-store");
+const { sendQuit } = require("./features/mediaService");
 
 const defaultWindowWidth = 1301;
 const defaultWindowHeight = 768;
@@ -11,7 +12,11 @@ let willQuitApp = false;
 app.commandLine.appendSwitch("disable-features", "HardwareMediaKeyHandling,MediaSessionService");
 process.on('uncaughtException', console.error);
 
-app.on("before-quit", () => (willQuitApp = true));
+app.on("before-quit", () => {
+  willQuitApp = true;
+  sendQuit();
+});
+
 app.on("activate", () => {
   if (win) {
     win.show();

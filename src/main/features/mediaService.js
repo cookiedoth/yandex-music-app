@@ -1,10 +1,32 @@
 const { ipcMain } = require("electron");
 const MediaService = require("electron-media-service");
 const { showTrackNotification } = require("./notifications");
-const { trackToMetaData, assignMetadata, getTrackMetaData } = require("./playerMetaData");
+const { trackToMetaData, assignMetadata, getTrackMetaData, getCoverFilePath } = require("./playerMetaData");
 
 const mediaService = new MediaService();
 mediaService.startService();
+
+var W3CWebSocket = require('websocket').w3cwebsocket
+var client = new W3CWebSocket('ws://localhost:8042/music')
+
+var fs = require('fs')
+
+client.onerror = function() {
+    console.log('Connection Error');
+};
+
+client.onopen = function() {
+    console.log('WebSocket Client Connected');
+};
+
+function sendQuit() {
+  dataToSend = JSON.stringify({
+    "connected": false
+  });
+  client.send(dataToSend)
+}
+
+exports.sendQuit = sendQuit
 
 ipcMain.on("changeTrack", (_event, { currentTrack }) => {
   trackToMetaData(currentTrack, (metaData) => {
@@ -12,6 +34,14 @@ ipcMain.on("changeTrack", (_event, { currentTrack }) => {
     if (isNotificationsEnabled() && metaData.state == MediaService.STATES.PLAYING) {
       showTrackNotification();
     }
+    dataToSend = JSON.stringify({
+      "connected": true,
+      "paused": (metaData.state == MediaService.STATES.PAUSED),
+      "artist": metaData.artist,
+      "song": metaData.title,
+      "coverImage": fs.readFileSync(getCoverFilePath(), 'base64'),
+    });
+    client.send(dataToSend);
   });
 });
 
@@ -34,6 +64,10 @@ ipcMain.on("changeState", (_event, state) => {
     state: newState,
   };
   updateMetadata(mediaServiceState);
+  dataToSend = JSON.stringify({
+    "paused": newState == MediaService.STATES.PAUSED,
+  })
+  client.send(dataToSend)
 });
 
 ipcMain.on("changeControls", (_event, controls) => {
@@ -110,3 +144,15 @@ function updateMetadata(newMetadata) {
 function isNotificationsEnabled() {
   return global.store.get("notifications", true);
 }
+
+client.onmessage = function(e) {
+  if (e.data == "next") {
+    playerCmd("next");
+  } else if (e.data == "play") {
+    playerCmd("play")
+    onPlayed()
+  } else if (e.data == "pause") {
+    playerCmd("pause")
+    onPaused()
+  }
+};
